@@ -1,113 +1,142 @@
-# Costa Rica ID Verifier
+# Costa Rica ID and Name Checker
 
-A lightweight Python utility designed to cross-reference a list of Costa Rican identification numbers with a list of specific names using the free public API provided by the Ministerio de Hacienda of Costa Rica.
+A small Python command-line utility that looks up a list of identification numbers through Costa Rica's Ministry of Finance public API and reports records whose returned names match a supplied list.
 
-## 📌 Project Status
+> **Project status:** functional utility / prototype. It performs sequential read-only lookups and prints results to the terminal. It is not a registry, identity-verification service, or production-grade batch processing system.
 
-**Active / Functional** - The script is fully functional and relies entirely on standard Python libraries to query the current Hacienda API.
+## What It Does
 
-## 🎯 Problem It Solves
-
-When dealing with lists of Costa Rican IDs (cédulas) and a separate list of names, verifying if a specific ID belongs to someone on your target names list can be a tedious manual process. This tool automates the process by fetching the official registered name for each ID directly from the government database and matching it against your target names, saving time and ensuring accuracy.
-
-## ✨ Main Features
-
-- **Automated Verification:** Queries IDs in bulk without manual intervention.
-- **No API Key Required:** Fully utilizes the free public endpoints of the Ministerio de Hacienda.
-- **Fuzzy Name Matching:** Normalizes accents (e.g., á, é, í) and capitalization to ensure accurate matches even if names are written differently.
-- **Zero External Dependencies:** Built entirely with Python's standard library. No need for `pip install`.
-- **Rate Limiting:** Built-in polite delay (1 second per request) to prevent overloading the public free servers.
-
-## 🛠 Technologies Used
-
-- **Language:** Python 3.6+ (Uses f-strings)
-- **Libraries (Standard):** `urllib`, `json`, `unicodedata`, `time`, `os`
-- **External API:** Ministerio de Hacienda API (Costa Rica)
-
-## 🏗 General Architecture
-
-The project consists of a single execution script (`checker.py`) that reads two input files. It processes the IDs sequentially, queries the API, and performs data normalization to find exact logical matches.
-
-```mermaid
-flowchart TD
-    A[Start] --> B[Load names.txt]
-    B --> C[Load ids.txt]
-    C --> D{Are lists empty?}
-    D -- Yes --> E[Exit Script]
-    D -- No --> F[Normalize Target Names]
-    F --> G[Loop through each ID]
-    G --> H[GET api.hacienda.go.cr]
-    H --> I{Status 200 OK?}
-    I -- No --> J[Log Error/Not Found]
-    J --> N
-    I -- Yes --> K[Extract & Normalize Name]
-    K --> L{Matches any Target Name?}
-    L -- Yes --> M[Print MATCH Details]
-    L -- No --> N
-    M --> N[Wait 1 second]
-    N --> O{More IDs?}
-    O -- Yes --> G
-    O -- No --> P[Print Total Matches & Exit]
-```
-
-## 📂 Repository Structure
+For each non-empty line in `ids.txt`, the script requests:
 
 ```text
-📦 costa-rica-id-verifier
- ┣ 📜 .gitignore     # Git ignore rules for Python
- ┣ 📜 checker.py     # Main execution script
- ┣ 📜 ids.txt        # Input file containing a list of IDs (one per line)
- ┗ 📜 names.txt      # Input file containing a list of target names (one per line)
+https://api.hacienda.go.cr/fe/ae?identificacion=<ID>
 ```
 
-## ✅ Prerequisites
+It reads the `nombre` returned by the API, normalizes accents, case, and whitespace, and compares it with every target in `names.txt`. A target matches only when all of its name tokens appear as complete tokens in the returned name.
 
-- **Python 3.6 or higher** installed on your system.
+Example:
 
-## 🚀 Installation
+```text
+names.txt:  MARIA LOPEZ
+API name:   MARIA ELENA LOPEZ RODRIGUEZ
+result:     match
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/jrodriguezes/costa-rica-id-verifier.git
-   cd costa-rica-id-verifier
-   ```
+## Current Behavior
 
-2. **Verify Python installation:**
-   ```bash
-   python --version
-   ```
-   *(No virtual environment or dependency installation is needed since everything relies on the standard library).*
+- Uses only Python's standard library.
+- Reads identification numbers from `ids.txt`.
+- Reads target names from `names.txt`.
+- Normalizes accents and letter case before comparison.
+- Uses a 10-second HTTP timeout.
+- Waits one second between requests to reduce load on the public service.
+- Handles common HTTP and connection errors without stopping the full run.
+- Writes progress and matches to standard output; it does not create a report file or database.
 
-## 💻 How to Run in Development
+## Requirements
 
-1. **Prepare your data:**
-   - Open `names.txt` and add the full names you want to search for, one per line.
-   - Open `ids.txt` and add the Costa Rican IDs you want to verify, one per line (numbers only, no dashes or spaces).
+- Python 3.6 or newer
+- Internet access to `api.hacienda.go.cr`
+- Permission and a legitimate purpose to process the input data
 
-2. **Execute the script:**
-   From the root directory of the project, run:
-   ```bash
-   python checker.py
-   ```
+No third-party Python packages are required.
 
-3. **View Results:**
-   The script will display the progress in real-time in your console. If it finds a match between an ID and a target name, it will print a `[MATCH]` notification with the details. At the end, it will output the total number of matches found.
+## Setup
 
-## 🔧 Troubleshooting
+```bash
+git clone https://github.com/jrodriguezes/costa-rica-id-verifier.git
+cd costa-rica-id-verifier
+```
 
-- **`ID [Number] not found in Hacienda.`**: This means the Hacienda API returned a 404 or 400 error. The ID might be invalid or not registered in the system.
-- **`Exception checking ID [Number]: HTTP 429`**: You are sending requests too fast and have been rate-limited. Ensure the `time.sleep(1.0)` remains in `checker.py`.
-- **Missing Names/IDs**: Ensure `names.txt` and `ids.txt` are in the exact same directory as `checker.py` and are saved with UTF-8 encoding.
+Create the two input files in the repository root.
 
-## ⚠️ Security & Important Considerations
+`names.txt`:
 
-- **API Limits:** The script includes an intentional delay (`time.sleep(1.0)`) to be respectful of the free government API. Do not remove this delay if querying a large number of IDs to avoid getting your IP temporarily blocked.
-- **Data Privacy:** This tool sends identification numbers over HTTPS to a public government API. Ensure you comply with local data protection laws (such as PRODHAB in Costa Rica) when processing and handling lists of personal identification numbers.
+```text
+PERSONA DE EJEMPLO
+OTRO NOMBRE DE EJEMPLO
+```
 
-## 🤝 How to Contribute
+`ids.txt`:
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/improvement`).
-3. Commit your changes (`git commit -m 'Add new feature'`).
-4. Push to the branch (`git push origin feature/improvement`).
-5. Open a Pull Request.
+```text
+000000000
+111111111
+```
+
+Use only synthetic examples or data that you are explicitly authorized to process. Then run:
+
+```bash
+python checker.py
+```
+
+On systems where Python 3 uses a separate executable:
+
+```bash
+python3 checker.py
+```
+
+## Matching Rules
+
+The comparison intentionally ignores:
+
+- Uppercase versus lowercase.
+- Diacritics such as `Á` versus `A`.
+- Repeated whitespace.
+- The order and presence of additional name tokens in the API response.
+
+The comparison does **not** implement fuzzy matching, typo correction, phonetic matching, or identity confirmation. A name match is only a text-processing result and can produce false positives when names are common or incomplete.
+
+## Data Flow
+
+```text
+ids.txt
+   │
+   ├─ one HTTPS request per ID ──> Hacienda public API
+   │                                  │
+names.txt ── normalize targets        └─ returned nombre
+   │                                      │
+   └──────────────── compare complete tokens
+                                          │
+                                          └─ terminal output
+```
+
+## Privacy and Responsible Use
+
+Identification numbers and names are personal data. Before using this project:
+
+- Obtain a lawful basis and authorization for the intended processing.
+- Do not commit real identification numbers or personal names to a public repository.
+- Replace repository samples with synthetic data.
+- Limit access to input files and terminal output.
+- Do not use a textual match as proof of identity, eligibility, legal status, or ownership.
+- Review the public API's current terms, availability, and acceptable-use requirements.
+
+The repository currently treats `ids.txt` and `names.txt` as ordinary files. If real data must be used locally, add them to `.gitignore` before populating them and verify that they have never been committed.
+
+## Known Limitations
+
+- Requests are sequential, so large lists are slow.
+- There is no retry or exponential-backoff strategy.
+- Output is console-only and is not machine-readable.
+- The external API can change, throttle requests, become unavailable, or return incomplete data.
+- Matching is token-based and does not establish that two people are the same person.
+- There are no automated tests or CI workflow.
+
+## Possible Improvements
+
+- [ ] Replace tracked input examples with clearly synthetic fixtures.
+- [ ] Add command-line arguments for input and output paths.
+- [ ] Add CSV or JSON report export.
+- [ ] Add structured logging and resumable runs.
+- [ ] Add configurable delay, timeout, and retry behavior.
+- [ ] Add unit tests for normalization and matching.
+- [ ] Add integration tests with mocked API responses.
+
+## License
+
+No open-source license is currently included. Unless a license is added, all rights are reserved.
+
+## Author
+
+[Jeremy Rodriguez](https://github.com/jrodriguezes)
