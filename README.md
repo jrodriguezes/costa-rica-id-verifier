@@ -6,7 +6,7 @@ A small Python command-line utility that looks up a list of identification numbe
 
 ## What It Does
 
-For each non-empty line in `ids.txt`, the script requests:
+For each non-empty row in `ids.csv`, the script requests:
 
 ```text
 https://api.hacienda.go.cr/fe/ae?identificacion=<ID>
@@ -22,16 +22,18 @@ API name:   MARIA ELENA LOPEZ RODRIGUEZ
 result:     match
 ```
 
+When a match is found, it outputs the Match Number, the full Name from the API, the ID, and extra contextual information from the CSV file (such as the registration Hour and Average/Grade).
+
 ## Current Behavior
 
-- Uses only Python's standard library.
-- Reads identification numbers from `ids.txt`.
+- Uses only Python's standard library (`urllib`, `csv`, `unicodedata`, etc.).
+- Reads identification numbers and metadata from a standard comma-separated `ids.csv` file.
 - Reads target names from `names.txt`.
-- Normalizes accents and letter case before comparison.
+- Normalizes accents (e.g. `í`, `é`) and letter case before comparison for robust matching.
 - Uses a 10-second HTTP timeout.
 - Waits one second between requests to reduce load on the public service.
 - Handles common HTTP and connection errors without stopping the full run.
-- Writes progress and matches to standard output; it does not create a report file or database.
+- Writes real-time progress and matched records to standard output; it does not create a report file or database.
 
 ## Requirements
 
@@ -57,11 +59,12 @@ PERSONA DE EJEMPLO
 OTRO NOMBRE DE EJEMPLO
 ```
 
-`ids.txt`:
+`ids.csv`: (Ensure this is a comma-separated CSV with headers Date, Time, ID, and Average)
 
-```text
-000000000
-111111111
+```csv
+Date,Time,ID,Average
+08/09/2026,09:00,111111111,10
+08/09/2026,09:30,222222222,9.5
 ```
 
 Use only synthetic examples or data that you are explicitly authorized to process. Then run:
@@ -81,7 +84,7 @@ python3 checker.py
 The comparison intentionally ignores:
 
 - Uppercase versus lowercase.
-- Diacritics such as `Á` versus `A`.
+- Diacritics/accents such as `Á` versus `A`.
 - Repeated whitespace.
 - The order and presence of additional name tokens in the API response.
 
@@ -90,15 +93,15 @@ The comparison does **not** implement fuzzy matching, typo correction, phonetic 
 ## Data Flow
 
 ```text
-ids.txt
-   │
-   ├─ one HTTPS request per ID ──> Hacienda public API
-   │                                  │
-names.txt ── normalize targets        └─ returned nombre
-   │                                      │
-   └──────────────── compare complete tokens
-                                          │
-                                          └─ terminal output
+ids.csv
+   |
+   |-> one HTTPS request per ID ---> Hacienda public API
+   |                                  |
+names.txt ---> normalize targets      |---> returned nombre
+   |                                  |
+   +----------------------------------+---> compare complete tokens
+                                      |
+                                      +---> terminal output (ID, Name, Hour, Avg)
 ```
 
 ## Privacy and Responsible Use
@@ -112,7 +115,7 @@ Identification numbers and names are personal data. Before using this project:
 - Do not use a textual match as proof of identity, eligibility, legal status, or ownership.
 - Review the public API's current terms, availability, and acceptable-use requirements.
 
-The repository currently treats `ids.txt` and `names.txt` as ordinary files. If real data must be used locally, add them to `.gitignore` before populating them and verify that they have never been committed.
+The repository currently treats `ids.csv` and `names.txt` as ordinary files. If real data must be used locally, add them to `.gitignore` before populating them and verify that they have never been committed.
 
 ## Known Limitations
 
@@ -122,16 +125,6 @@ The repository currently treats `ids.txt` and `names.txt` as ordinary files. If 
 - The external API can change, throttle requests, become unavailable, or return incomplete data.
 - Matching is token-based and does not establish that two people are the same person.
 - There are no automated tests or CI workflow.
-
-## Possible Improvements
-
-- [ ] Replace tracked input examples with clearly synthetic fixtures.
-- [ ] Add command-line arguments for input and output paths.
-- [ ] Add CSV or JSON report export.
-- [ ] Add structured logging and resumable runs.
-- [ ] Add configurable delay, timeout, and retry behavior.
-- [ ] Add unit tests for normalization and matching.
-- [ ] Add integration tests with mocked API responses.
 
 ## License
 
